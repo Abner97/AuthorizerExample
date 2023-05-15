@@ -1,0 +1,106 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: sam-app
+
+Resources:
+  CredicorpApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Dev
+      Cors: "'*'"
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt CrediCorpUsersPool.Arn
+            Identity:
+              Header: Authorization
+              ReauthorizeEvery: 30
+            ProviderARNs:
+              - !GetAtt CrediCorpUsersPool.Arn
+            AuthorizationScopes:
+              - credicorp-test/read
+              - credicorp-test/write
+
+  CredicorpLoginHostedUI:
+    Type: AWS::Cognito::UserPoolUICustomizationAttachment
+    Properties:
+      ClientId: !Ref CredicorpUserPoolClient
+      UserPoolId: !Ref CrediCorpUsersPool
+
+  HelloWorldFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: hello_world/
+      Handler: app.lambda_handler
+      Runtime: python3.10
+      Events:
+        HelloWorld:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CredicorpApi
+            Path: /helloWorld
+            Method: get
+
+  CrediCorpUsersPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: CrediCorpUsersPool
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: True
+          RequireNumbers: True
+          RequireSymbols: True
+          RequireUppercase: True
+          TemporaryPasswordValidityDays: 7
+
+  CrediCorpResourceServer:
+    Type: AWS::Cognito::UserPoolResourceServer
+    Properties:
+      Identifier: credicorp-test
+      Name: credicorp-test
+      UserPoolId: !Ref CrediCorpUsersPool
+      Scopes:
+        - ScopeName: read
+          ScopeDescription: Read Access
+        - ScopeName: write
+          ScopeDescription: Write Access
+
+  CredicorpUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: CredicorpUserPoolClient
+      GenerateSecret: True
+      ExplicitAuthFlows:
+        - ALLOW_CUSTOM_AUTH
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      UserPoolId: !Ref CrediCorpUsersPool
+      AllowedOAuthFlows:
+        - client_credentials
+      AllowedOAuthFlowsUserPoolClient: True
+      AllowedOAuthScopes:
+        - credicorp-test/read
+        - credicorp-test/write
+
+  CredicorpCognitoPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: credicorp-test
+      UserPoolId: !Ref CrediCorpUsersPool
+# Outputs:
+#   HelloWorldApi:
+#     Description: "API Gateway endpoint URL for Prod stage for Hello World function"
+#     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
+#   HelloWorldFunction:
+#     Description: "Hello World Lambda Function ARN"
+#     Value: !GetAtt HelloWorldFunction.Arn
+#   HelloWorldFunctionIamRole:
+#     Description: "Implicit IAM Role created for Hello World function"
+#     Value: !GetAtt HelloWorldFunctionRole.Arn
