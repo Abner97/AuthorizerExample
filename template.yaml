@@ -22,12 +22,6 @@ Resources:
               - credicorp-test/read
               - credicorp-test/write
 
-  CredicorpLoginHostedUI:
-    Type: AWS::Cognito::UserPoolUICustomizationAttachment
-    Properties:
-      ClientId: !Ref CredicorpUserPoolClient
-      UserPoolId: !Ref CrediCorpUsersPool
-
   HelloWorldFunction:
     Type: AWS::Serverless::Function
     Properties:
